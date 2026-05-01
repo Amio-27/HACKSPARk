@@ -83,8 +83,8 @@ services:
       - "${USER_SERVICE_PORT:-8001}:8001"
     environment:
       PORT:              8001
-      DATABASE_URL:      ${DATABASE_URL}
-      JWT_SECRET:        ${JWT_SECRET}
+      DATABASE_URL:      ${DATABASE_URL:-postgresql://rentpi:localpassword@postgres:5432/rentpi_local}
+      JWT_SECRET:        ${JWT_SECRET:-dev-secret-change-me}
       CENTRAL_API_URL:   ${CENTRAL_API_URL}
       CENTRAL_API_TOKEN: ${CENTRAL_API_TOKEN}
     depends_on:

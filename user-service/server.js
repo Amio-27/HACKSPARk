@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const http = require("http");
+const bcrypt = require("bcryptjs");
 const { Pool } = require("pg");
 
 const PORT = Number(process.env.PORT || 8001);
@@ -7,6 +8,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "local-dev-secret";
 const CENTRAL_API_URL = (process.env.CENTRAL_API_URL || "https://technocracy.brittoo.xyz").replace(/\/$/, "");
 const CENTRAL_API_TOKEN = process.env.CENTRAL_API_TOKEN || "";
 const CENTRAL_USER_CACHE_TTL_MS = 60 * 1000;
+const PASSWORD_SALT_ROUNDS = 10;
 const centralUserCache = new Map();
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL
@@ -43,25 +45,26 @@ function verifyJwt(token) {
     .update(`${header}.${body}`)
     .digest("base64url");
 
-  // Buffer বানিয়ে compare করো
   const sigBuf = Buffer.from(signature);
   const expBuf = Buffer.from(expected);
-  if (sigBuf.length !== expBuf.length) return null;  // ← fix
+  if (sigBuf.length !== expBuf.length) return null;
   if (!crypto.timingSafeEqual(sigBuf, expBuf)) return null;
 
-  const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
-  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
-  return payload;
+  try {
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return payload;
+  } catch {
+    return null;
+  }
 }
 
-function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")) {
-  const hash = crypto.pbkdf2Sync(password, salt, 120000, 32, "sha256").toString("hex");
-  return `${salt}:${hash}`;
+function hashPassword(password) {
+  return bcrypt.hash(password, PASSWORD_SALT_ROUNDS);
 }
 
 function verifyPassword(password, stored) {
-  const [salt] = stored.split(":");
-  return hashPassword(password, salt) === stored;
+  return bcrypt.compare(password, stored);
 }
 
 function getDiscountPercent(securityScore) {
@@ -135,17 +138,14 @@ function publicUser(row) {
   return {
     id: row.id,
     name: row.name,
-    email: row.email,
-    securityScore: row.security_score
+    email: row.email
   };
 }
 
 function userToken(row) {
   return signJwt({
-    sub: row.id,
-    name: row.name,
-    email: row.email,
-    securityScore: row.security_score
+    userId: row.id,
+    email: row.email
   });
 }
 
@@ -159,14 +159,20 @@ const server = http.createServer(async (req, res) => {
 
       if (req.method === "POST" && req.url === "/users/register") {
         const { name, email, password } = await readJson(req);
-        if (!name || !email || !password) return sendJson(res, 400, { error: "name, email, and password are required" });
-        const normalizedEmail = String(email).toLowerCase();
+        const trimmedName = String(name || "").trim();
+        const normalizedEmail = String(email || "").trim().toLowerCase();
+        const passwordText = String(password || "");
+
+        if (!trimmedName || !normalizedEmail || !passwordText) {
+          return sendJson(res, 400, { error: "Missing required fields" });
+        }
+
         const existing = await pool.query("SELECT id FROM users WHERE email = $1", [normalizedEmail]);
-        if (existing.rowCount > 0) return sendJson(res, 409, { error: "Email already registered" });
+        if (existing.rowCount > 0) return sendJson(res, 409, { error: "Email already exists" });
 
         const result = await pool.query(
           "INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING id, name, email, security_score",
-          [name, normalizedEmail, hashPassword(password)]
+          [trimmedName, normalizedEmail, await hashPassword(passwordText)]
         );
         const user = result.rows[0];
         return sendJson(res, 201, { token: userToken(user), user: publicUser(user) });
@@ -174,22 +180,37 @@ const server = http.createServer(async (req, res) => {
 
       if (req.method === "POST" && req.url === "/users/login") {
         const { email, password } = await readJson(req);
+        const normalizedEmail = String(email || "").trim().toLowerCase();
+        const passwordText = String(password || "");
+
+        if (!normalizedEmail || !passwordText) {
+          return sendJson(res, 400, { error: "Missing required fields" });
+        }
+
         const result = await pool.query(
           "SELECT id, name, email, password_hash, security_score FROM users WHERE email = $1",
-          [String(email || "").toLowerCase()]
+          [normalizedEmail]
         );
         const user = result.rows[0];
-        if (!user || !verifyPassword(password || "", user.password_hash)) {
+        if (!user || !(await verifyPassword(passwordText, user.password_hash))) {
           return sendJson(res, 401, { error: "Invalid credentials" });
         }
         return sendJson(res, 200, { token: userToken(user), user: publicUser(user) });
       }
 
       if (req.method === "GET" && req.url === "/users/me") {
-        const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
-        const payload = token ? verifyJwt(token) : null;
-        if (!payload) return sendJson(res, 401, { error: "Missing or invalid token" });
-        return sendJson(res, 200, { user: { id: payload.sub, name: payload.name, email: payload.email, securityScore: payload.securityScore } });
+        const authorization = req.headers.authorization || "";
+        const match = authorization.match(/^Bearer\s+(.+)$/i);
+        if (!match) return sendJson(res, 401, { error: "Missing token" });
+
+        const payload = verifyJwt(match[1]);
+        if (!payload || !payload.userId) return sendJson(res, 401, { error: "Invalid token" });
+
+        const result = await pool.query("SELECT id, name, email FROM users WHERE id = $1", [payload.userId]);
+        const user = result.rows[0];
+        if (!user) return sendJson(res, 401, { error: "Invalid token" });
+
+        return sendJson(res, 200, publicUser(user));
       }
 
       const discountMatch = path.match(/^\/users\/([^/]+)\/discount$/);
@@ -218,7 +239,8 @@ const server = http.createServer(async (req, res) => {
 
       sendJson(res, 404, { error: "Route not found" });
     } catch (error) {
-      sendJson(res, 500, { error: "user-service error", detail: error.message });
+      if (error instanceof SyntaxError) return sendJson(res, 400, { error: "Invalid JSON" });
+      sendJson(res, 500, { error: "user-service error" });
     }
   });
 
