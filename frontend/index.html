@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RentPi</title>
+    <style>
+      :root {
+        color: #17202a;
+        background: #f5f7fb;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      body {
+        margin: 0;
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 40px 20px;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 32px;
+      }
+      h1 {
+        font-size: 40px;
+        margin: 0;
+      }
+      button {
+        border: 0;
+        border-radius: 6px;
+        background: #116466;
+        color: white;
+        cursor: pointer;
+        font-weight: 700;
+        padding: 12px 16px;
+      }
+      pre {
+        background: #ffffff;
+        border: 1px solid #d9e2ec;
+        border-radius: 8px;
+        min-height: 180px;
+        overflow: auto;
+        padding: 18px;
+      }
+      .panel {
+        display: grid;
+        gap: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>RentPi</h1>
+          <p>Starter frontend is running. Build the customer experience from here.</p>
+        </div>
+        <button id="statusButton">Check Platform</button>
+      </header>
+      <section class="panel">
+        <h2>Gateway Status</h2>
+        <pre id="statusOutput">Click "Check Platform" to call the API gateway.</pre>
+      </section>
+    </main>
+    <script>
+      const output = document.querySelector("#statusOutput");
+      document.querySelector("#statusButton").addEventListener("click", async () => {
+        output.textContent = "Loading...";
+        try {
+          const response = await fetch("http://localhost:8000/status");
+          output.textContent = JSON.stringify(await response.json(), null, 2);
+        } catch (error) {
+          output.textContent = `Could not reach gateway: ${error.message}`;
+        }
+      });
+    </script>
+  </body>
+</html>

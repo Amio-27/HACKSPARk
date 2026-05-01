@@ -27,6 +27,8 @@ services:
 
   mongodb:
     image: mongo:7-jammy
+    profiles:
+      - mongo
     restart: unless-stopped
     volumes:
       - mongo_data:/data/db
@@ -147,15 +149,13 @@ services:
       - "${AGENTIC_SERVICE_PORT:-8004}:8004"
     environment:
       PORT:                  8004
-      MONGO_URI:             ${MONGO_URI}
+      MONGO_URI:             ${MONGO_URI:-mongodb://mongodb:27017/rentpi_agentic}
       CENTRAL_API_URL:       ${CENTRAL_API_URL}
       CENTRAL_API_TOKEN:     ${CENTRAL_API_TOKEN}
       GEMINI_API_KEY:        ${GEMINI_API_KEY:-}
       ANALYTICS_SERVICE_URL: http://analytics-service:8003
       RENTAL_SERVICE_URL:    http://rental-service:8002
     depends_on:
-      mongodb:
-        condition: service_healthy
       analytics-service:
         condition: service_healthy
       rental-service:        
@@ -183,7 +183,7 @@ services:
       api-gateway:
         condition: service_healthy
     healthcheck:                                     
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/status || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
