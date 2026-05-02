@@ -1,9 +1,9 @@
 # HACKSPARk
 
 
-This is only for MacOS
+This is only for Windows
 
-There will be slight modification for windows in docker-compose.yml file.
+There will be slight modification for MacOS in docker-compose.yml file.
 
 Task 14:
 ![Task 14 output](image.png)
@@ -17,4 +17,6 @@ Task 16:
 Task 19:
 ![task 19](image-4.png)
 
+Frontend:
+![Frontend](image-5.png)
 
