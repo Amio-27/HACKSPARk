@@ -9,6 +9,21 @@ const SEASONAL_RADIUS_DAYS = 7;
 const HISTORICAL_YEARS = 2;
 const RENTAL_PAGE_LIMIT = 100;
 const MAX_RECOMMENDATION_LIMIT = 50;
+const CENTRAL_API_LOCAL_LIMIT = 28;
+const CENTRAL_API_WINDOW_MS = 60000;
+const configuredRecommendationPageBudget = Number(process.env.RECOMMENDATION_RENTAL_PAGE_BUDGET);
+const RECOMMENDATION_RENTAL_PAGE_BUDGET = Math.max(
+  HISTORICAL_YEARS,
+  Math.min(
+    CENTRAL_API_LOCAL_LIMIT - 1,
+    Number.isFinite(configuredRecommendationPageBudget) && configuredRecommendationPageBudget > 0
+      ? configuredRecommendationPageBudget
+      : CENTRAL_API_LOCAL_LIMIT - 2
+  )
+);
+const RECOMMENDATION_CACHE_TTL_MS = 5 * 60 * 1000;
+const centralApiRequestTimes = [];
+const recommendationsCache = new Map();
 
 function sendJson(res, status, body) {
   res.writeHead(status, { "content-type": "application/json" });
@@ -195,6 +210,64 @@ function sanitizeUpstreamDetails(value) {
   return sanitized;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForCentralApiSlot() {
+  const now = Date.now();
+  while (centralApiRequestTimes.length > 0 && now - centralApiRequestTimes[0] >= CENTRAL_API_WINDOW_MS) {
+    centralApiRequestTimes.shift();
+  }
+
+  if (centralApiRequestTimes.length < CENTRAL_API_LOCAL_LIMIT) {
+    centralApiRequestTimes.push(now);
+    return;
+  }
+
+  const waitMs = Math.max(0, CENTRAL_API_WINDOW_MS - (now - centralApiRequestTimes[0]) + 250);
+  await sleep(waitMs);
+  await waitForCentralApiSlot();
+}
+
+async function fetchCentralJson(path, timeoutMs = 10000) {
+  if (!CENTRAL_API_TOKEN || CENTRAL_API_TOKEN === "your_team_token_here") {
+    const error = new Error("Central API token is not configured");
+    error.status = 500;
+    throw error;
+  }
+
+  await waitForCentralApiSlot();
+
+  try {
+    const response = await fetch(`${CENTRAL_API_URL}${path}`, {
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${CENTRAL_API_TOKEN}`
+      },
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+    const contentType = response.headers.get("content-type") || "application/json";
+    const body = Buffer.from(await response.arrayBuffer());
+    const parsed = parseUpstreamBody(body, contentType);
+
+    if (!response.ok) {
+      const error = new Error(centralErrorMessage(response.status));
+      error.status = response.status;
+      error.upstream = parsed;
+      throw error;
+    }
+
+    return parsed;
+  } catch (error) {
+    if (error.status) throw error;
+    const upstreamError = new Error("Central API unavailable");
+    upstreamError.status = 502;
+    upstreamError.upstream = { message: error.message };
+    throw upstreamError;
+  }
+}
+
 async function fetchMonthlyStats(month) {
   if (!CENTRAL_API_TOKEN || CENTRAL_API_TOKEN === "your_team_token_here") {
     const error = new Error("Central API token is not configured");
@@ -239,64 +312,43 @@ async function fetchMonthlyStats(month) {
   }
 }
 
-async function fetchAllRentalsForWindow(from, to) {
-  if (!CENTRAL_API_TOKEN || CENTRAL_API_TOKEN === "your_team_token_here") {
-    const error = new Error("Central API token is not configured");
-    error.status = 500;
-    throw error;
-  }
-
+async function fetchRentalsForWindow(from, to, pageBudget) {
   const rentals = [];
   let page = 1;
   let totalPages = 1;
+  let total = 0;
+  const maxPages = Math.max(1, pageBudget);
 
   do {
     const path =
       `/api/data/rentals?from=${encodeURIComponent(from)}` +
       `&to=${encodeURIComponent(to)}&page=${page}&limit=${RENTAL_PAGE_LIMIT}`;
 
-    try {
-      const response = await fetch(`${CENTRAL_API_URL}${path}`, {
-        headers: {
-          accept: "application/json",
-          authorization: `Bearer ${CENTRAL_API_TOKEN}`
-        },
-        signal: AbortSignal.timeout(10000)
-      });
-      const contentType = response.headers.get("content-type") || "application/json";
-      const body = Buffer.from(await response.arrayBuffer());
-      const parsed = parseUpstreamBody(body, contentType);
-
-      if (!response.ok) {
-        const error = new Error(centralErrorMessage(response.status));
-        error.status = response.status;
-        error.upstream = parsed;
-        throw error;
-      }
-      if (!parsed || !Array.isArray(parsed.data)) {
-        const error = new Error("Central API returned an invalid rentals response");
-        error.status = 502;
-        error.upstream = parsed;
-        throw error;
-      }
-
-      rentals.push(...parsed.data);
-      const responseLimit = Number(parsed.limit || RENTAL_PAGE_LIMIT);
-      const totalPagesFromTotal =
-        parsed.total && responseLimit > 0 ? Math.ceil(Number(parsed.total) / responseLimit) : null;
-      const parsedTotalPages = Number(parsed.totalPages || parsed.total_pages || totalPagesFromTotal || page);
-      totalPages = Number.isFinite(parsedTotalPages) && parsedTotalPages > 0 ? parsedTotalPages : page;
-      page += 1;
-    } catch (error) {
-      if (error.status) throw error;
-      const upstreamError = new Error("Central API unavailable");
-      upstreamError.status = 502;
-      upstreamError.upstream = { message: error.message };
-      throw upstreamError;
+    const parsed = await fetchCentralJson(path);
+    if (!parsed || !Array.isArray(parsed.data)) {
+      const error = new Error("Central API returned an invalid rentals response");
+      error.status = 502;
+      error.upstream = parsed;
+      throw error;
     }
-  } while (page <= totalPages);
 
-  return rentals;
+    rentals.push(...parsed.data);
+    const responseLimit = Number(parsed.limit || RENTAL_PAGE_LIMIT);
+    total = Number(parsed.total || total);
+    const totalPagesFromTotal =
+      total && responseLimit > 0 ? Math.ceil(total / responseLimit) : null;
+    const parsedTotalPages = Number(parsed.totalPages || parsed.total_pages || totalPagesFromTotal || page);
+    totalPages = Number.isFinite(parsedTotalPages) && parsedTotalPages > 0 ? parsedTotalPages : page;
+    page += 1;
+  } while (page <= totalPages && page <= maxPages);
+
+  return {
+    rentals,
+    fetchedPages: page - 1,
+    totalPages,
+    total,
+    complete: page > totalPages
+  };
 }
 
 function isRentalStartInsideWindows(rental, windows) {
@@ -328,47 +380,18 @@ function selectTopKProducts(scoreMap, limit) {
 
 async function fetchProductsBatch(productIds) {
   if (productIds.length === 0) return [];
-  if (!CENTRAL_API_TOKEN || CENTRAL_API_TOKEN === "your_team_token_here") {
-    const error = new Error("Central API token is not configured");
-    error.status = 500;
+
+  const path = `/api/data/products/batch?ids=${productIds.map(encodeURIComponent).join(",")}`;
+  const parsed = await fetchCentralJson(path);
+
+  if (!parsed || !Array.isArray(parsed.data)) {
+    const error = new Error("Central API returned an invalid products batch response");
+    error.status = 502;
+    error.upstream = parsed;
     throw error;
   }
 
-  const path = `/api/data/products/batch?ids=${productIds.map(encodeURIComponent).join(",")}`;
-
-  try {
-    const response = await fetch(`${CENTRAL_API_URL}${path}`, {
-      headers: {
-        accept: "application/json",
-        authorization: `Bearer ${CENTRAL_API_TOKEN}`
-      },
-      signal: AbortSignal.timeout(10000)
-    });
-    const contentType = response.headers.get("content-type") || "application/json";
-    const body = Buffer.from(await response.arrayBuffer());
-    const parsed = parseUpstreamBody(body, contentType);
-
-    if (!response.ok) {
-      const error = new Error(centralErrorMessage(response.status));
-      error.status = response.status;
-      error.upstream = parsed;
-      throw error;
-    }
-    if (!parsed || !Array.isArray(parsed.data)) {
-      const error = new Error("Central API returned an invalid products batch response");
-      error.status = 502;
-      error.upstream = parsed;
-      throw error;
-    }
-
-    return parsed.data;
-  } catch (error) {
-    if (error.status) throw error;
-    const upstreamError = new Error("Central API unavailable");
-    upstreamError.status = 502;
-    upstreamError.upstream = { message: error.message };
-    throw upstreamError;
-  }
+  return parsed.data;
 }
 
 function normalizeStatsToFullRange(statsResponses, startDay, endDay) {
@@ -561,17 +584,36 @@ async function handleRecommendationsRequest(req, res) {
 
   try {
     const limit = Number(limitText);
+    const cacheKey = `${dateText}:${limit}`;
+    const cached = recommendationsCache.get(cacheKey);
+
+    if (cached && Date.now() - cached.createdAt < RECOMMENDATION_CACHE_TTL_MS) {
+      return sendJson(res, 200, cached.body);
+    }
+
     const windows = buildHistoricalSeasonalWindows(parseDateUTC(dateText));
-    const rentalsByWindow = await Promise.all(
-      windows.map((window) => fetchAllRentalsForWindow(window.from, window.to))
+    const pageBudgetPerWindow = Math.max(
+      1,
+      Math.floor(RECOMMENDATION_RENTAL_PAGE_BUDGET / windows.length)
     );
-    const scoreMap = scoreRentalsByProduct(rentalsByWindow.flat(), windows);
+    const rentalsByWindow = [];
+
+    for (const window of windows) {
+      rentalsByWindow.push(await fetchRentalsForWindow(window.from, window.to, pageBudgetPerWindow));
+    }
+
+    const scoreMap = scoreRentalsByProduct(
+      rentalsByWindow.flatMap((windowResult) => windowResult.rentals),
+      windows
+    );
 
     if (scoreMap.size === 0) {
-      return sendJson(res, 200, {
+      const body = {
         date: dateText,
         recommendations: []
-      });
+      };
+      recommendationsCache.set(cacheKey, { createdAt: Date.now(), body });
+      return sendJson(res, 200, body);
     }
 
     const topProducts = selectTopKProducts(scoreMap, limit);
@@ -598,10 +640,12 @@ async function handleRecommendationsRequest(req, res) {
       .filter(Boolean)
       .sort((a, b) => b.score - a.score || a.productId - b.productId);
 
-    return sendJson(res, 200, {
+    const body = {
       date: dateText,
       recommendations
-    });
+    };
+    recommendationsCache.set(cacheKey, { createdAt: Date.now(), body });
+    return sendJson(res, 200, body);
   } catch (error) {
     const status = error.status || 502;
     return sendJson(res, status, {

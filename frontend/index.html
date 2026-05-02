@@ -8,75 +8,750 @@
       :root {
         color: #17202a;
         background: #f5f7fb;
-        font-family: Arial, Helvetica, sans-serif;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --brand: #0f766e;
+        --brand-dark: #115e59;
+        --ink: #17202a;
+        --muted: #64748b;
+        --line: #dbe4ef;
+        --panel: #ffffff;
+        --soft: #eef6f5;
+        --danger: #b42318;
+        --ok: #087443;
       }
-      body {
-        margin: 0;
-      }
-      main {
-        max-width: 960px;
-        margin: 0 auto;
-        padding: 40px 20px;
-      }
-      header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        margin-bottom: 32px;
-      }
-      h1 {
-        font-size: 40px;
-        margin: 0;
-      }
+
+      * { box-sizing: border-box; }
+      body { margin: 0; min-width: 320px; }
+      a { color: inherit; text-decoration: none; }
+      button, input, select, textarea { font: inherit; }
       button {
         border: 0;
         border-radius: 6px;
-        background: #116466;
-        color: white;
+        background: var(--brand);
+        color: #fff;
         cursor: pointer;
         font-weight: 700;
-        padding: 12px 16px;
+        padding: 10px 14px;
       }
-      pre {
-        background: #ffffff;
-        border: 1px solid #d9e2ec;
+      button:disabled { cursor: not-allowed; opacity: 0.55; }
+      .secondary { background: #e2e8f0; color: #0f172a; }
+      .ghost { background: transparent; color: var(--brand-dark); border: 1px solid var(--line); }
+      .danger { background: #fee4e2; color: var(--danger); }
+      .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+      .navbar {
+        background: rgba(255,255,255,0.96);
+        border-bottom: 1px solid var(--line);
+        position: sticky;
+        top: 0;
+        z-index: 5;
+      }
+      .nav-inner {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 14px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+      }
+      .brand { display: flex; align-items: center; gap: 10px; font-weight: 900; letter-spacing: 0; }
+      .brand-mark {
+        width: 34px; height: 34px; border-radius: 8px; background: var(--brand);
+        color: white; display: grid; place-items: center; font-weight: 900;
+      }
+      .nav-links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+      .nav-link { padding: 8px 10px; border-radius: 6px; color: #334155; font-weight: 650; }
+      .nav-link.active, .nav-link:hover { background: var(--soft); color: var(--brand-dark); }
+      main { width: 100%; max-width: 1180px; margin: 0 auto; padding: 28px 20px 46px; flex: 1; }
+      .page-head { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+      h1 { margin: 0 0 6px; font-size: clamp(28px, 4vw, 42px); line-height: 1.05; letter-spacing: 0; }
+      h2 { margin: 0 0 12px; font-size: 22px; }
+      h3 { margin: 0 0 8px; font-size: 17px; }
+      p { color: var(--muted); line-height: 1.55; }
+      .grid { display: grid; gap: 16px; }
+      .two-col { grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); align-items: start; }
+      .three-col { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
         border-radius: 8px;
-        min-height: 180px;
-        overflow: auto;
         padding: 18px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
       }
-      .panel {
+      .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 16px; }
+      .field { display: grid; gap: 6px; min-width: 180px; }
+      .field label { color: #334155; font-size: 13px; font-weight: 750; }
+      input, select, textarea {
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 10px 11px;
+        background: #fff;
+        color: #0f172a;
+        width: 100%;
+      }
+      textarea { resize: vertical; min-height: 44px; max-height: 160px; }
+      .muted { color: var(--muted); }
+      .small { font-size: 13px; }
+      .error {
+        border: 1px solid #fda29b;
+        color: var(--danger);
+        background: #fff7f6;
+        padding: 12px 14px;
+        border-radius: 8px;
+      }
+      .empty, .loading {
+        border: 1px dashed #cbd5e1;
+        color: var(--muted);
+        background: #fff;
+        padding: 22px;
+        border-radius: 8px;
+        text-align: center;
+      }
+      .badge {
+        display: inline-flex; align-items: center; gap: 6px; border-radius: 999px;
+        padding: 5px 9px; font-size: 12px; font-weight: 800; background: #edf6ff; color: #175cd3;
+      }
+      .badge.ok { background: #ecfdf3; color: var(--ok); }
+      .badge.no { background: #fff1f3; color: #c01048; }
+      .product-card { cursor: pointer; transition: border-color 0.15s, transform 0.15s; }
+      .product-card:hover { border-color: #7dd3fc; transform: translateY(-1px); }
+      .product-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+      .detail-row { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid #eef2f7; }
+      .detail-row span:first-child { color: var(--muted); }
+      .auth-card { max-width: 430px; margin: 26px auto; }
+      .auth-card form { display: grid; gap: 14px; }
+      .list { display: grid; gap: 10px; }
+      .period { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; }
+
+      .chat-layout {
         display: grid;
+        grid-template-columns: 290px minmax(0, 1fr);
+        min-height: 680px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+      }
+      .session-panel {
+        border-right: 1px solid var(--line);
+        background: #f8fafc;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
         gap: 12px;
+      }
+      .session-list { display: grid; gap: 8px; overflow: auto; }
+      .session-item {
+        text-align: left;
+        background: #fff;
+        color: #0f172a;
+        border: 1px solid #e2e8f0;
+        display: grid;
+        gap: 4px;
+        padding: 10px;
+      }
+      .session-item.active { border-color: var(--brand); background: var(--soft); }
+      .chat-main { display: flex; flex-direction: column; min-width: 0; }
+      .chat-messages {
+        flex: 1;
+        overflow: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        background: linear-gradient(#ffffff, #f8fafc);
+      }
+      .bubble {
+        max-width: min(74%, 720px);
+        padding: 12px 14px;
+        border-radius: 8px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+      }
+      .bubble.user { align-self: flex-end; background: var(--brand); color: #fff; }
+      .bubble.assistant { align-self: flex-start; background: #eef2f7; color: #0f172a; }
+      .chat-input { border-top: 1px solid var(--line); padding: 14px; display: flex; gap: 10px; align-items: end; }
+      .typing { color: var(--muted); font-style: italic; padding-left: 4px; }
+      .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; }
+      .day-card { min-height: 120px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; display: grid; gap: 6px; align-content: start; }
+      .day-card.surge { border-color: #14b8a6; background: #f0fdfa; }
+      .rec-card { display: grid; gap: 8px; }
+
+      /* Trending widget styles */
+      .trending-grid { display: grid; gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .trending-card { display: flex; flex-direction: column; gap: 10px; }
+      .score-bar { height: 8px; background: #e6eef7; border-radius: 999px; overflow: hidden; }
+      .score-fill { height: 100%; background: linear-gradient(90deg,#60a5fa,#06b6d4); border-radius: 999px; }
+      .skeleton { background: linear-gradient(90deg,#f3f4f6,#eef2f7); border-radius: 8px; min-height: 86px; }
+
+      @media (max-width: 860px) {
+        .nav-inner, .page-head { align-items: flex-start; flex-direction: column; }
+        .nav-links { justify-content: flex-start; }
+        .two-col, .three-col, .chat-layout { grid-template-columns: 1fr; }
+        .session-panel { border-right: 0; border-bottom: 1px solid var(--line); max-height: 260px; }
+        .calendar-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .bubble { max-width: 92%; }
+        .trending-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 520px) {
+        .trending-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
   <body>
-    <main>
-      <header>
-        <div>
-          <h1>RentPi</h1>
-          <p>Starter frontend is running. Build the customer experience from here.</p>
+    <div class="app-shell">
+      <nav class="navbar">
+        <div class="nav-inner">
+          <a class="brand" href="/products" data-link>
+            <span class="brand-mark">R</span>
+            <span>RentPi</span>
+          </a>
+          <div class="nav-links" id="navLinks"></div>
         </div>
-        <button id="statusButton">Check Platform</button>
-      </header>
-      <section class="panel">
-        <h2>Gateway Status</h2>
-        <pre id="statusOutput">Click "Check Platform" to call the API gateway.</pre>
-      </section>
-    </main>
+      </nav>
+      <main id="app"></main>
+    </div>
+
     <script>
-      const output = document.querySelector("#statusOutput");
-      document.querySelector("#statusButton").addEventListener("click", async () => {
-        output.textContent = "Loading...";
+      const API_BASE_URL = window.RENTPI_API_BASE_URL || "http://localhost:8000";
+      const TOKEN_KEY = "rentpi_token";
+      const fallbackCategories = ["ELECTRONICS", "FURNITURE", "VEHICLES", "TOOLS", "OUTDOOR", "SPORTS", "MUSIC", "CAMERAS", "OFFICE", "LUGGAGE"];
+      const app = document.querySelector("#app");
+      const navLinks = document.querySelector("#navLinks");
+
+      const state = {
+        productPage: 1,
+        productLimit: 20,
+        productCategory: "",
+        selectedProduct: null,
+        chatSessionId: null,
+        chatMessages: [],
+        chatSessions: []
+      };
+
+      function token() { return localStorage.getItem(TOKEN_KEY); }
+      function setToken(value) { value ? localStorage.setItem(TOKEN_KEY, value) : localStorage.removeItem(TOKEN_KEY); }
+      function todayDate() { return new Date().toISOString().slice(0, 10); }
+      function currentMonth() { return new Date().toISOString().slice(0, 7); }
+      function escapeHtml(value) {
+        return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+      }
+      function formatMoney(value) {
+        const number = Number(value);
+        return Number.isFinite(number) ? `$${number.toFixed(2)}/day` : "Price unavailable";
+      }
+      function formatTime(value) {
+        if (!value) return "No activity yet";
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+      }
+      function friendlyError(error) {
+        return error && error.message ? error.message : "Something went wrong. Please try again.";
+      }
+
+      async function apiRequest(path, options = {}) {
+        const headers = { accept: "application/json", ...(options.headers || {}) };
+        const authToken = token();
+        if (authToken) headers.authorization = `Bearer ${authToken}`;
+        if (options.body && !(options.body instanceof FormData)) headers["content-type"] = "application/json";
+
+        let response;
         try {
-          const response = await fetch("http://localhost:8000/status");
-          output.textContent = JSON.stringify(await response.json(), null, 2);
-        } catch (error) {
-          output.textContent = `Could not reach gateway: ${error.message}`;
+          response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+        } catch {
+          throw new Error("Could not reach RentPi. Please check that the platform is running.");
         }
+
+        const text = await response.text();
+        let data = null;
+        try { data = text ? JSON.parse(text) : null; } catch { data = { message: text }; }
+
+        if (!response.ok) {
+          const message = data && (data.message || data.error || data.detail) ? (data.message || data.error || data.detail) : `Request failed with ${response.status}`;
+          throw new Error(message);
+        }
+        return data;
+      }
+
+      function navigate(path) {
+        history.pushState({}, "", path);
+        render();
+      }
+
+      function setNav() {
+        const path = location.pathname === "/" ? "/products" : location.pathname;
+        const links = [
+          ["/products", "Products"],
+          ["/trending", "Trending"],
+          ["/availability", "Availability"],
+          ["/chat", "Chat"],
+          ["/surge-calendar", "Surge Calendar"],
+          ["/recommendations", "Recommendations"]
+        ];
+        navLinks.innerHTML = links.map(([href, label]) =>
+          `<a href="${href}" data-link class="nav-link ${path === href ? "active" : ""}">${label}</a>`
+        ).join("") + (token()
+          ? `<button class="ghost" id="logoutBtn">Logout</button>`
+          : `<a href="/login" data-link class="nav-link ${path === "/login" ? "active" : ""}">Login</a>`);
+        const logout = document.querySelector("#logoutBtn");
+        if (logout) logout.addEventListener("click", () => { setToken(""); navigate("/login"); });
+      }
+
+      function pageShell(title, subtitle, body, action = "") {
+        app.innerHTML = `
+          <section class="page-head">
+            <div><h1>${title}</h1><p>${subtitle}</p></div>
+            ${action}
+          </section>
+          ${body}
+        `;
+      }
+
+      function loading(label = "Loading RentPi data...") { return `<div class="loading">${label}</div>`; }
+      function empty(label) { return `<div class="empty">${label}</div>`; }
+      function errorBox(message) { return `<div class="error">${escapeHtml(message)}</div>`; }
+
+      function renderAuth(mode) {
+        const isLogin = mode === "login";
+        pageShell(
+          isLogin ? "Welcome Back" : "Create Account",
+          isLogin ? "Sign in to manage rentals and chat with RentPi Assistant." : "Join RentPi and start exploring product rentals.",
+          `<section class="card auth-card">
+            <form id="authForm">
+              ${isLogin ? "" : `<div class="field"><label>Name</label><input name="name" autocomplete="name" required /></div>`}
+              <div class="field"><label>Email</label><input name="email" type="email" autocomplete="email" required /></div>
+              <div class="field"><label>Password</label><input name="password" type="password" autocomplete="${isLogin ? "current-password" : "new-password"}" required /></div>
+              <button id="authSubmit" type="submit">${isLogin ? "Login" : "Register"}</button>
+              <div id="authMessage"></div>
+              <p class="small">${isLogin ? "Need an account?" : "Already registered?"} <a class="nav-link" data-link href="${isLogin ? "/register" : "/login"}">${isLogin ? "Register" : "Login"}</a></p>
+            </form>
+          </section>`
+        );
+        document.querySelector("#authForm").addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const form = new FormData(event.currentTarget);
+          const submit = document.querySelector("#authSubmit");
+          const msg = document.querySelector("#authMessage");
+          submit.disabled = true;
+          msg.innerHTML = "";
+          try {
+            const payload = isLogin
+              ? { email: form.get("email"), password: form.get("password") }
+              : { name: form.get("name"), email: form.get("email"), password: form.get("password") };
+            const data = await apiRequest(isLogin ? "/users/login" : "/users/register", { method: "POST", body: JSON.stringify(payload) });
+            if (data && data.token) setToken(data.token);
+            navigate(isLogin || data.token ? "/products" : "/login");
+          } catch (error) {
+            msg.innerHTML = errorBox(friendlyError(error));
+          } finally {
+            submit.disabled = false;
+          }
+        });
+      }
+
+      async function renderProducts() {
+        pageShell("Products", "Browse the RentPi catalog through the gateway.", `
+          <form class="toolbar" id="productFilters">
+            <div class="field"><label>Category</label><select name="category"><option value="">All categories</option>${fallbackCategories.map((cat) => `<option value="${cat}" ${state.productCategory === cat ? "selected" : ""}>${cat}</option>`).join("")}</select></div>
+            <div class="field"><label>Page size</label><select name="limit"><option ${state.productLimit === 10 ? "selected" : ""}>10</option><option ${state.productLimit === 20 ? "selected" : ""}>20</option><option ${state.productLimit === 50 ? "selected" : ""}>50</option></select></div>
+            <button type="submit">Apply</button>
+          </form>
+          <div class="grid two-col">
+            <section id="productList">${loading("Loading products...")}</section>
+            <aside id="productDetail" class="card">${empty("Select a product to view details.")}</aside>
+          </div>
+        `);
+        document.querySelector("#productFilters").addEventListener("submit", (event) => {
+          event.preventDefault();
+          const form = new FormData(event.currentTarget);
+          state.productCategory = form.get("category");
+          state.productLimit = Number(form.get("limit"));
+          state.productPage = 1;
+          renderProducts();
+        });
+        try {
+          const query = new URLSearchParams({ page: String(state.productPage), limit: String(state.productLimit) });
+          if (state.productCategory) query.set("category", state.productCategory);
+          const data = await apiRequest(`/rentals/products?${query.toString()}`);
+          const products = Array.isArray(data.data) ? data.data : [];
+          document.querySelector("#productList").innerHTML = `
+            <div class="grid">
+              <div class="card">
+                <strong>Page ${data.page || state.productPage}</strong>
+                <span class="muted small">${data.total ? `${Number(data.total).toLocaleString()} total products` : ""}</span>
+              </div>
+              ${products.length ? products.map(productCard).join("") : empty("No products found for this filter.")}
+              <div class="toolbar">
+                <button class="secondary" id="prevPage" ${state.productPage <= 1 ? "disabled" : ""}>Previous</button>
+                <button class="secondary" id="nextPage" ${data.totalPages && state.productPage >= data.totalPages ? "disabled" : ""}>Next</button>
+              </div>
+            </div>
+          `;
+          document.querySelectorAll("[data-product-id]").forEach((el) => el.addEventListener("click", () => loadProductDetail(el.dataset.productId)));
+          document.querySelector("#prevPage").addEventListener("click", () => { state.productPage = Math.max(1, state.productPage - 1); renderProducts(); });
+          document.querySelector("#nextPage").addEventListener("click", () => { state.productPage += 1; renderProducts(); });
+        } catch (error) {
+          document.querySelector("#productList").innerHTML = errorBox(friendlyError(error));
+        }
+      }
+
+      function productCard(product) {
+        return `<article class="card product-card" data-product-id="${product.id}">
+          <h3>${escapeHtml(product.name || `Product #${product.id}`)}</h3>
+          <p class="small muted">Owner ${escapeHtml(product.ownerId ?? product.owner_id ?? "Unknown")}</p>
+          <div class="product-meta">
+            <span class="badge">${escapeHtml(product.category || "UNCATEGORIZED")}</span>
+            <span class="badge ok">${formatMoney(product.pricePerDay)}</span>
+          </div>
+        </article>`;
+      }
+
+      async function loadProductDetail(id) {
+        const panel = document.querySelector("#productDetail");
+        panel.innerHTML = loading("Loading product details...");
+        try {
+          const product = await apiRequest(`/rentals/products/${encodeURIComponent(id)}`);
+          panel.innerHTML = `<h2>${escapeHtml(product.name || `Product #${id}`)}</h2>
+            <div class="detail-row"><span>Product ID</span><strong>${escapeHtml(product.id ?? id)}</strong></div>
+            <div class="detail-row"><span>Category</span><strong>${escapeHtml(product.category || "Unknown")}</strong></div>
+            <div class="detail-row"><span>Price</span><strong>${formatMoney(product.pricePerDay)}</strong></div>
+            <div class="detail-row"><span>Owner</span><strong>${escapeHtml(product.ownerId ?? "Unknown")}</strong></div>
+            <button style="margin-top:14px" id="checkAvailability">Check availability</button>`;
+          document.querySelector("#checkAvailability").addEventListener("click", () => {
+            navigate(`/availability?productId=${encodeURIComponent(product.id ?? id)}`);
+          });
+        } catch (error) {
+          panel.innerHTML = errorBox(friendlyError(error));
+        }
+      }
+
+      function renderAvailability() {
+        const params = new URLSearchParams(location.search);
+        pageShell("Availability", "Check busy periods and free windows for a product.", `
+          <section class="card">
+            <form class="toolbar" id="availabilityForm">
+              <div class="field"><label>Product ID</label><input name="productId" value="${escapeHtml(params.get("productId") || "")}" inputmode="numeric" required /></div>
+              <div class="field"><label>From</label><input name="from" type="date" required /></div>
+              <div class="field"><label>To</label><input name="to" type="date" required /></div>
+              <button id="availabilitySubmit">Check</button>
+            </form>
+            <div id="availabilityResult">${empty("Enter a product and date range to check availability.")}</div>
+          </section>
+        `);
+        document.querySelector("#availabilityForm").addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const form = new FormData(event.currentTarget);
+          const productId = String(form.get("productId")).trim();
+          const from = form.get("from");
+          const to = form.get("to");
+          const result = document.querySelector("#availabilityResult");
+          if (!productId || !from || !to) return result.innerHTML = errorBox("Product ID, from date, and to date are required.");
+          if (from > to) return result.innerHTML = errorBox("From date must be before or equal to to date.");
+          result.innerHTML = loading("Checking availability...");
+          try {
+            const data = await apiRequest(`/rentals/products/${encodeURIComponent(productId)}/availability?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+            result.innerHTML = availabilityView(data);
+          } catch (error) {
+            result.innerHTML = errorBox(friendlyError(error));
+          }
+        });
+      }
+
+      function availabilityView(data) {
+        const busy = Array.isArray(data.busyPeriods) ? data.busyPeriods : [];
+        const free = Array.isArray(data.freeWindows) ? data.freeWindows : [];
+        const rangeList = (items) => items.length ? items.map((item) => `<div class="period">${escapeHtml(item.from)} to ${escapeHtml(item.to)}</div>`).join("") : empty("None reported.");
+        return `<div class="grid">
+          <h2>Product ${escapeHtml(data.productId)}</h2>
+          <span class="badge ${data.available ? "ok" : "no"}">${data.available ? "Available" : "Not available"}</span>
+          <div class="grid two-col">
+            <div><h3>Busy periods</h3><div class="list">${rangeList(busy)}</div></div>
+            <div><h3>Free windows</h3><div class="list">${rangeList(free)}</div></div>
+          </div>
+        </div>`;
+      }
+
+      async function renderChat() {
+        if (!state.chatSessionId) state.chatSessionId = crypto.randomUUID();
+        pageShell("RentPi Assistant", "Ask about rentals, availability, trends, discounts, and recommendations.", `
+          <section class="chat-layout">
+            <aside class="session-panel">
+              <button id="newChatBtn">New Chat</button>
+              <div id="sessionList" class="session-list">${loading("Loading sessions...")}</div>
+            </aside>
+            <section class="chat-main">
+              <div id="chatMessages" class="chat-messages"></div>
+              <form id="chatForm" class="chat-input">
+                <textarea id="chatInput" placeholder="Ask RentPi Assistant..." rows="2"></textarea>
+                <button id="sendBtn" type="submit">Send</button>
+              </form>
+            </section>
+          </section>
+        `);
+        document.querySelector("#newChatBtn").addEventListener("click", () => {
+          state.chatSessionId = crypto.randomUUID();
+          state.chatMessages = [];
+          drawChatMessages();
+          drawSessions();
+        });
+        document.querySelector("#chatForm").addEventListener("submit", sendChat);
+        document.querySelector("#chatInput").addEventListener("keydown", (event) => {
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            document.querySelector("#chatForm").requestSubmit();
+          }
+        });
+        drawChatMessages();
+        await loadSessions();
+      }
+
+      async function loadSessions() {
+        const container = document.querySelector("#sessionList");
+        try {
+          const data = await apiRequest("/chat/sessions");
+          state.chatSessions = Array.isArray(data.sessions) ? data.sessions : [];
+          drawSessions();
+        } catch (error) {
+          container.innerHTML = errorBox(friendlyError(error));
+        }
+      }
+
+      function drawSessions() {
+        const container = document.querySelector("#sessionList");
+        if (!container) return;
+        if (!state.chatSessions.length) {
+          container.innerHTML = empty("No saved chats yet.");
+          return;
+        }
+        container.innerHTML = state.chatSessions.map((session) => `
+          <button class="session-item ${state.chatSessionId === session.sessionId ? "active" : ""}" data-session-id="${escapeHtml(session.sessionId)}">
+            <strong>${escapeHtml(session.name || "RentPi Chat")}</strong>
+            <span class="small muted">${formatTime(session.lastMessageAt)}</span>
+          </button>
+        `).join("");
+        container.querySelectorAll("[data-session-id]").forEach((button) => button.addEventListener("click", () => loadChatHistory(button.dataset.sessionId)));
+      }
+
+      async function loadChatHistory(sessionId) {
+        state.chatSessionId = sessionId;
+        state.chatMessages = [];
+        drawChatMessages("Loading history...");
+        try {
+          const data = await apiRequest(`/chat/${encodeURIComponent(sessionId)}/history`);
+          state.chatMessages = Array.isArray(data.messages) ? data.messages : [];
+          drawChatMessages();
+          drawSessions();
+        } catch (error) {
+          drawChatMessages(null, friendlyError(error));
+        }
+      }
+
+      function drawChatMessages(loadingText, errorText) {
+        const area = document.querySelector("#chatMessages");
+        if (!area) return;
+        if (errorText) {
+          area.innerHTML = `<div class="bubble assistant">${escapeHtml(errorText)}</div>`;
+          return;
+        }
+        if (loadingText) {
+          area.innerHTML = `<div class="typing">${loadingText}</div>`;
+          return;
+        }
+        if (!state.chatMessages.length) {
+          area.innerHTML = `<div class="empty">Start a new RentPi conversation.</div>`;
+          return;
+        }
+        area.innerHTML = state.chatMessages.map((message) => `<div class="bubble ${message.role === "user" ? "user" : "assistant"}">${escapeHtml(message.content)}</div>`).join("");
+        area.scrollTop = area.scrollHeight;
+      }
+
+      async function sendChat(event) {
+        event.preventDefault();
+        const input = document.querySelector("#chatInput");
+        const sendBtn = document.querySelector("#sendBtn");
+        const message = input.value.trim();
+        if (!message || sendBtn.disabled) return;
+        if (!state.chatSessionId) state.chatSessionId = crypto.randomUUID();
+        state.chatMessages.push({ role: "user", content: message, timestamp: new Date().toISOString() });
+        input.value = "";
+        input.disabled = true;
+        sendBtn.disabled = true;
+        drawChatMessages();
+        const area = document.querySelector("#chatMessages");
+        area.insertAdjacentHTML("beforeend", `<div class="typing" id="typingIndicator">RentPi Assistant is typing...</div>`);
+        try {
+          const data = await apiRequest("/chat", { method: "POST", body: JSON.stringify({ sessionId: state.chatSessionId, message }) });
+          document.querySelector("#typingIndicator")?.remove();
+          state.chatMessages.push({ role: "assistant", content: data.reply || "I could not get a response right now.", timestamp: new Date().toISOString() });
+          drawChatMessages();
+          await loadSessions();
+        } catch {
+          document.querySelector("#typingIndicator")?.remove();
+          state.chatMessages.push({ role: "assistant", content: "I could not get a response right now. Please try again.", timestamp: new Date().toISOString() });
+          drawChatMessages();
+        } finally {
+          input.disabled = false;
+          sendBtn.disabled = false;
+          input.focus();
+        }
+      }
+
+      function renderSurgeCalendar() {
+        pageShell("Surge Calendar", "Spot days that lead into higher rental demand.", `
+          <section class="card">
+            <form class="toolbar" id="surgeForm">
+              <div class="field"><label>Month</label><input type="month" name="month" value="${currentMonth()}" required /></div>
+              <button>Load Surge Days</button>
+            </form>
+            <div id="surgeResult">${empty("Choose a month to visualize rental surges.")}</div>
+          </section>
+        `);
+        document.querySelector("#surgeForm").addEventListener("submit", loadSurge);
+        document.querySelector("#surgeForm").requestSubmit();
+      }
+
+      async function loadSurge(event) {
+        event.preventDefault();
+        const month = new FormData(event.currentTarget).get("month");
+        const result = document.querySelector("#surgeResult");
+        result.innerHTML = loading("Loading surge calendar...");
+        try {
+          const data = await apiRequest(`/analytics/surge-days?month=${encodeURIComponent(month)}`);
+          const days = Array.isArray(data.data) ? data.data : [];
+          result.innerHTML = days.length ? `<div class="calendar-grid">${days.map((day) => `
+            <article class="day-card ${day.nextSurgeDate ? "surge" : ""}">
+              <strong>${escapeHtml(String(day.date).slice(-2))}</strong>
+              <span class="small muted">${escapeHtml(day.date)}</span>
+              <span>Rentals: <strong>${escapeHtml(day.count ?? 0)}</strong></span>
+              <span class="small">${day.nextSurgeDate ? `Next surge: ${escapeHtml(day.nextSurgeDate)} (${escapeHtml(day.daysUntil)} days)` : "No future surge"}</span>
+            </article>
+          `).join("")}</div>` : empty("No surge data found for this month.");
+        } catch (error) {
+          result.innerHTML = errorBox(friendlyError(error));
+        }
+      }
+
+      function renderRecommendations() {
+        pageShell("Seasonal Recommendations", "Find products historically popular around a selected date.", `
+          <section class="card">
+            <form class="toolbar" id="recommendationForm">
+              <div class="field"><label>Date</label><input type="date" name="date" value="${todayDate()}" required /></div>
+              <div class="field"><label>Limit</label><select name="limit"><option>5</option><option selected>10</option><option>20</option><option>50</option></select></div>
+              <button>Load Recommendations</button>
+            </form>
+            <div id="recommendationResult">${empty("Choose a date to see seasonal recommendations.")}</div>
+          </section>
+        `);
+        document.querySelector("#recommendationForm").addEventListener("submit", loadRecommendations);
+        document.querySelector("#recommendationForm").requestSubmit();
+      }
+
+      // Trending today - P18
+      function trendingSkeletons(n = 6) {
+        return `<div class="grid trending-grid">${Array.from({ length: n }).map(() => `<article class="card skeleton"></article>`).join("")}</div>`;
+      }
+
+      async function fetchTrending() {
+        const result = document.querySelector("#trendingResult");
+        const refreshBtn = document.querySelector("#refreshTrending");
+        if (refreshBtn) refreshBtn.disabled = true;
+        result.innerHTML = trendingSkeletons(6);
+        try {
+          const date = todayDate();
+          const data = await apiRequest(`/analytics/recommendations?date=${encodeURIComponent(date)}&limit=6`);
+          const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
+          if (!recs.length) {
+            result.innerHTML = `<div class="card"><div class="empty">No trending recommendations found for today.</div><div style="margin-top:12px"><button id=\"refreshTrendingInline\">Refresh</button></div></div>`;
+            document.querySelector("#refreshTrendingInline").addEventListener("click", fetchTrending);
+            return;
+          }
+          // normalize score to create a small progress indicator
+          const maxScore = Math.max(...recs.map((r) => Number(r.score) || 0), 1);
+          result.innerHTML = `<div class="grid trending-grid">${recs.slice(0, 6).map((item) => {
+            const score = Number(item.score) || 0;
+            const pct = Math.round((score / maxScore) * 100);
+            return `
+              <article class="card trending-card product-card">
+                <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+                  <h3 style="margin:0">${escapeHtml(item.name || `Product #${item.productId}`)}</h3>
+                  <span class="badge">${escapeHtml(item.category || "UNCATEGORIZED")}</span>
+                </div>
+                <div class="product-meta">
+                  <span class="muted small">ID ${escapeHtml(String(item.productId))}</span>
+                  <strong>Score ${escapeHtml(String(score))}</strong>
+                </div>
+                <div class="score-bar" aria-hidden="true"><div class="score-fill" style="width:${pct}%"></div></div>
+              </article>`;
+          }).join("")}</div>`;
+        } catch (error) {
+          result.innerHTML = `<div class="card"><div class="error">We couldn't load today's trending products.</div><div style="margin-top:12px"><button id="retryTrending">Retry</button></div></div>`;
+          document.querySelector("#retryTrending").addEventListener("click", fetchTrending);
+        } finally {
+          if (refreshBtn) refreshBtn.disabled = false;
+        }
+      }
+
+      function renderTrending() {
+        pageShell("What's Trending Today?", "Seasonal picks based on historical rental activity.", `
+          <section class="card">
+            <div class="toolbar">
+              <div></div>
+              <div><button id="refreshTrending">Refresh</button></div>
+            </div>
+            <div id="trendingResult">${trendingSkeletons(6)}</div>
+          </section>
+        `);
+        document.querySelector("#refreshTrending").addEventListener("click", fetchTrending);
+        // initial load
+        fetchTrending();
+      }
+
+      async function loadRecommendations(event) {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        const date = form.get("date");
+        const limit = Math.min(50, Math.max(1, Number(form.get("limit")) || 10));
+        const result = document.querySelector("#recommendationResult");
+        result.innerHTML = loading("Loading recommendations...");
+        try {
+          const data = await apiRequest(`/analytics/recommendations?date=${encodeURIComponent(date)}&limit=${limit}`);
+          const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
+          result.innerHTML = recs.length ? `<div class="grid three-col">${recs.map((item) => `
+            <article class="card rec-card">
+              <span class="badge">#${escapeHtml(item.productId)}</span>
+              <h3>${escapeHtml(item.name)}</h3>
+              <span class="muted">${escapeHtml(item.category)}</span>
+              <strong>Score ${escapeHtml(item.score)}</strong>
+            </article>
+          `).join("")}</div>` : empty("No seasonal recommendations found for this date.");
+        } catch (error) {
+          result.innerHTML = errorBox(friendlyError(error));
+        }
+      }
+
+      function render() {
+        setNav();
+        const path = location.pathname === "/" ? "/products" : location.pathname;
+        if (path === "/login") return renderAuth("login");
+        if (path === "/register") return renderAuth("register");
+        if (path === "/products") return renderProducts();
+        if (path === "/availability") return renderAvailability();
+        if (path === "/chat") return renderChat();
+        if (path === "/surge-calendar") return renderSurgeCalendar();
+        if (path === "/trending") return renderTrending();
+        if (path === "/recommendations") return renderRecommendations();
+        pageShell("Page Not Found", "That RentPi page does not exist.", `<section class="card"><button id="goProducts">Go to Products</button></section>`);
+        document.querySelector("#goProducts").addEventListener("click", () => navigate("/products"));
+      }
+
+      document.addEventListener("click", (event) => {
+        const link = event.target.closest("[data-link]");
+        if (!link) return;
+        event.preventDefault();
+        navigate(link.getAttribute("href"));
       });
+      window.addEventListener("popstate", render);
+      render();
     </script>
   </body>
 </html>

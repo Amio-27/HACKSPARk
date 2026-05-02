@@ -27,8 +27,6 @@ services:
 
   mongodb:
     image: mongo:7-jammy
-    profiles:
-      - mongo
     restart: unless-stopped
     volumes:
       - mongo_data:/data/db
@@ -156,6 +154,8 @@ services:
       ANALYTICS_SERVICE_URL: http://analytics-service:8003
       RENTAL_SERVICE_URL:    http://rental-service:8002
     depends_on:
+      mongodb:
+        condition: service_healthy
       analytics-service:
         condition: service_healthy
       rental-service:        
